@@ -1,0 +1,5 @@
+# directory to store the output kernel image in
+/bin
+
+/target
+**/*.rs.bk

@@ -1,0 +1,16 @@
+[package]
+name = "octopoda"
+version = "0.1.0"
+authors = ["Ian Boll <iangboll@vt.edu>"]
+edition = "2018"
+license = "MPL-2.0"
+repository = "https://gitlab.com/bollian/octopoda"
+readme = "README"
+keywords = ["kernel", "bare-metal", "no-std"]
+categories = ["embedded", "hardware-support", "no-std"]
+description = "An OS kernel I'm developing as a thought experiment"
+
+[dependencies]
+futures = { version = "0.3.1", default-features = false }
+raspi3-boot = { path = "raspi3-boot" }
+register = "0.3.3"

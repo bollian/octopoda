@@ -25,7 +25,8 @@ $(RELEASE_ARTIFACT):
 	cargo xrustc --target=$(TARGET) --release
 
 $(KERNEL_IMAGE): $(RELEASE_ARTIFACT)
-	mkdir -p $(BIN_DIR) # the -p is so that mkdir doesn't fail if the directory exists
+	# the -p is so that mkdir doesn't fail if the directory exists
+	mkdir -p $(BIN_DIR)
 	cargo objcopy -- --strip-all -O binary $(RELEASE_ARTIFACT) $(KERNEL_IMAGE)
 
 # this is tested with qemu 4.0, and seems to require it for the raspi3 support

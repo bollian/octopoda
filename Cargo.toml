@@ -3,14 +3,27 @@ name = "octopoda"
 version = "0.1.0"
 authors = ["Ian Boll <iangboll@vt.edu>"]
 edition = "2018"
-license = "MPL-2.0"
+license = "MPL2"
 repository = "https://gitlab.com/bollian/octopoda"
 readme = "README"
 keywords = ["kernel", "bare-metal", "no-std"]
 categories = ["embedded", "hardware-support", "no-std"]
 description = "An OS kernel I'm developing as a thought experiment"
 
+[features]
+default = []
+bsp_rpi3 = []
+bsp_rpi4 = []
+
 [dependencies]
-futures = { version = "0.3.1", default-features = false }
-raspi3-boot = { path = "raspi3-boot" }
-register = "0.3.3"
+register = "^1.0.2"
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+# currently only cortex-a is supported
+cortex-a = "^5.1.6"
+
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+x86 = "^0.37.0"
+
+[profile.release]
+lto = true

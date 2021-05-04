@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 # exit if a command fails
 set -e
@@ -18,4 +18,17 @@ label: mbr
 size=512MiB,name=boot,type=c
 PARTITION_SCHEME
 
-mkfs.fat -F 32 "$BOOT_DISK"p1
+BOOT_PARTITION=$(lsblk "$BOOT_DISK" --raw -o PATH | tail -n 1)
+
+mkfs.fat -F 32 "$BOOT_PARTITION"
+mkdir -p media
+mount "$BOOT_PARTITION" media
+
+cat > media/config.txt << EOF
+arm_64bit=1
+init_uart_clock=48000000
+EOF
+cp firmware/boot/bootcode.bin firmware/boot/fixup.dat firmware/boot/start.elf bin/kernel8.img media
+
+umount media
+rmdir media

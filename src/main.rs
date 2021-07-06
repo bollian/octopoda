@@ -6,36 +6,40 @@
 #![no_std]
 #![no_main]
 
-#![feature(llvm_asm, asm)]
-#![feature(naked_functions)]
+#![feature(asm, naked_functions, maybe_uninit_extra, maybe_uninit_ref)]
 
 mod arch;
 mod bsp;
+mod defer;
 mod driver;
 mod memory;
 mod panic_wait;
 mod runtime_init;
+mod sync;
+// mod time;
+// mod warn;
 
-// use core::fmt::Write;
-use driver::uart::Uart;
+use core::convert::Infallible;
+use ufmt::uwriteln;
+use bsp::DriverManager;
 
 /// The "main" entrypoint of the kernel. Called after stopping other cores
 /// and initializing the bss section.
 fn main() -> ! {
-    use core::fmt::Write;
+    stdout().with_lock(|w| {
+        let _ = uwriteln!(w, "Hello, World!");
+    });
+    arch::asm::wait_forever()
+}
 
-    let mut gpio = unsafe { driver::gpio::Gpio::new(bsp::mmap::GPIO_BASE) };
-    let mut uart = unsafe { driver::uart::PL011Uart::new(bsp::mmap::PL011_UART_BASE) };
-    uart.init(&mut gpio, 921_600).unwrap();
+pub fn drivers() -> &'static DriverManager {
+    static DRIVER_MANAGER: sync::OnceCell<DriverManager> = sync::OnceCell::new();
+    // SAFETY: guaranteed to only run once thanks to OnceCell
+    DRIVER_MANAGER.get_or_init(|| {
+        unsafe { DriverManager::new() }
+    })
+}
 
-    let _ = writeln!(&mut uart, "Hello, World!");
-    let _ = writeln!(&mut uart, "Echoing input now.");
-
-    loop {
-        let c = uart.receive_native();
-        if c == b'\n' {
-            uart.send(b'\r')
-        }
-        uart.send(c);
-    }
+pub fn stdout() -> sync::SpinMutexMut<'static, dyn ufmt::uWrite<Error=Infallible>> {
+    drivers().stdout()
 }

@@ -7,5 +7,6 @@ pub enum Error {
 }
 
 pub trait Driver {
-    fn init(&mut self) -> Result<(), Error>;
+    /// Compatibility string identifying the driver
+    fn compatible(&self) -> &'static str;
 }

@@ -2,6 +2,9 @@
 
 use core::cell::UnsafeCell;
 use core::ops::RangeInclusive;
+use core::convert::Infallible;
+use crate::driver::{Driver, gpio::Gpio, uart::PL011Uart};
+use crate::sync::{SpinMutex, SpinMutexMut};
 
 pub mod mmap {
     #[cfg(feature = "bsp_rpi3")]
@@ -36,4 +39,38 @@ pub fn bss_range() -> RangeInclusive<*mut usize> {
     };
     assert!(!bss_range.is_empty());
     bss_range
+}
+
+pub struct DriverManager {
+    gpio: SpinMutex<Gpio>,
+    uart: SpinMutex<PL011Uart>,
+}
+
+impl DriverManager {
+    /// Initialize all available drivers
+    ///
+    /// # Safety
+    ///
+    /// Must be called only once to avoid double-initializing peripherals.
+    pub unsafe fn new() -> Self {
+        let mut gpio = Gpio::new(mmap::GPIO_BASE);
+        let uart = PL011Uart::new(mmap::PL011_UART_BASE);
+        uart.init(&mut gpio, 921_600).unwrap();
+
+        let gpio = SpinMutex::new(gpio);
+        let uart = SpinMutex::new(uart);
+
+        Self {
+            gpio,
+            uart,
+        }
+    }
+
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = SpinMutexMut<dyn Driver>> {
+        core::array::IntoIter::new([self.gpio.borrow(), self.uart.borrow()])
+    }
+
+    pub fn stdout(&self) -> SpinMutexMut<dyn ufmt::uWrite<Error = Infallible>> {
+        self.uart.borrow()
+    }
 }

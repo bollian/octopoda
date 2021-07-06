@@ -1,6 +1,6 @@
-use core::fmt;
+use core::convert::Infallible;
 use crate::arch;
-use crate::driver::{self, gpio::Gpio};
+use crate::driver::{self, gpio::Gpio, Driver};
 use register::mmio::{ReadOnly, ReadWrite, WriteOnly};
 use register::{register_bitfields, register_structs};
 
@@ -180,7 +180,7 @@ register_structs! {
 // Currently this is unsafe since it gives shared mutability over the register block. Really this
 // should contain some sort of Mutex to guard interior mutability.
 pub struct PL011Uart {
-    regs: &'static RegisterBlock
+    regs: &'static mut RegisterBlock
 }
 
 impl PL011Uart {
@@ -188,7 +188,7 @@ impl PL011Uart {
     /// The user must verify that the address for the register block is correct.
     pub unsafe fn new(base_address: usize) -> Self {
         Self {
-            regs: &*(base_address as *const _)
+            regs: &mut *(base_address as *mut _)
         }
     }
 
@@ -241,8 +241,10 @@ impl Uart for PL011Uart {
     }
 }
 
-impl fmt::Write for PL011Uart {
-    fn write_str(&mut self, msg: &str) -> fmt::Result {
+impl ufmt::uWrite for PL011Uart {
+    type Error = core::convert::Infallible;
+
+    fn write_str(&mut self, msg: &str) -> Result<(), Self::Error> {
         for byte in msg.bytes() {
             if byte == b'\n' {
                 self.send(b'\r')
@@ -250,5 +252,23 @@ impl fmt::Write for PL011Uart {
             self.send(byte)
         }
         Ok(())
+    }
+}
+
+impl Driver for PL011Uart {
+    fn compatible(&self) -> &'static str {
+        "BCM PL011 UART"
+    }
+}
+
+impl AsMut<dyn Driver> for PL011Uart {
+    fn as_mut(&mut self) -> &mut (dyn Driver + 'static) {
+        self
+    }
+}
+
+impl AsMut<dyn ufmt::uWrite<Error=Infallible>> for PL011Uart {
+    fn as_mut(&mut self) -> &mut (dyn ufmt::uWrite<Error=Infallible> + 'static) {
+        self
     }
 }

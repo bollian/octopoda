@@ -45,9 +45,10 @@ KERNEL_ELF    := target/$(TARGET)/release/$(CODENAME)
 DOCKER_UTILS:=rustembedded/osdev-utils
 DOCKER_RUN:=docker run -it --rm
 DOCKER_WORK_DIR:=-v $(shell pwd):/work -w /work
-SOURCES:=$(wildcard src/*.rs) $(wildcard src/**/*.rs) $(wildcard src/**/*.ld) Cargo.toml Cargo.lock Makefile
+SOURCES:=$(wildcard src/*.rs) $(wildcard src/**/*.rs) $(wildcard src/**/*.ld) \
+	Cargo.toml Cargo.lock Makefile rust-toolchain.toml
 
-.PHONY: all clean check qemu-test clippy objdump nm readelf chainboot doc
+.PHONY: all clean check qemu-test clippy objdump nm readelf chainboot doc $(KERNEL_ELF)
 
 all: $(KERNEL_BIN)
 
@@ -90,7 +91,7 @@ readelf: $(KERNEL_ELF)
 doc:
 	cargo doc --target=$(TARGET) --features bsp_$(BSP) --document-private-items
 
-chainboot: $(KERNEL_ELF)
+chainboot: $(KERNEL_BIN)
 	ruby utils/minipush.rb $(DEV_SERIAL) $(KERNEL_BIN)
 
 miniterm:

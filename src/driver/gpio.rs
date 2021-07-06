@@ -1,4 +1,5 @@
 use crate::arch;
+use crate::driver::Driver;
 use register::mmio::ReadWrite;
 use register::{register_bitfields, register_structs};
 
@@ -74,15 +75,17 @@ register_structs! {
 // FIXME: This provides shared mutability over the register block. Add some sort of Mutex to
 // regulate that interior mutability.
 pub struct Gpio {
-    regs: &'static RegisterBlock,
+    regs: &'static mut RegisterBlock,
 }
 
 impl Gpio {
     /// # Safety
-    /// The user must verify that the address for the register block is correct.
+    /// The user must verify that the address for the register block is correct and
+    /// that no more than once instance of `Gpio` exists for a base address at any
+    /// given time.
     pub unsafe fn new(base_address: usize) -> Self {
         Self {
-            regs: &*(base_address as *const _),
+            regs: &mut *(base_address as *mut _),
         }
     }
 
@@ -104,5 +107,17 @@ impl Gpio {
 
         self.regs.GPPUD.write(GPPUD::PUD::Off);
         self.regs.GPPUDCLK0.set(0);
+    }
+}
+
+impl Driver for Gpio {
+    fn compatible(&self) -> &'static str {
+        "BCM GPIO"
+    }
+}
+
+impl AsMut<dyn Driver> for Gpio {
+    fn as_mut(&mut self) -> &mut (dyn Driver + 'static) {
+        self
     }
 }

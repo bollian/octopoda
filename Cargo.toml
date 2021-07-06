@@ -16,7 +16,11 @@ bsp_rpi3 = []
 bsp_rpi4 = []
 
 [dependencies]
+cfg-if = "^1.0"
+lock_api = "*" # use the same version as `spin`
 register = "^1.0.2"
+spin = "^0.9"
+ufmt = "^0.1"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 # currently only cortex-a is supported

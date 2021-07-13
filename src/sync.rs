@@ -1,18 +1,96 @@
-use core::cell::UnsafeCell;
+//! Synchronization primitives.
+//!
+//! At the moment, these are wildly incorrect implementations that don't use proper atomic
+//! operations. This is only because the RPi3 doesn't seem to accept the ARMv8 atomic instructions.
+//! There's probably some flag that needs to be set in the CPU to enable them.
+//!
+//! So long as this kernel is single-threaded, this isn't actually a problem. These type instead
+//! serve to get around the sharing restrictions imposed by the rust compiler. Eventually, the
+//! bug(s) that prevent the use of atomics need to be fixed.
+
+use core::cell::{Cell, UnsafeCell};
 use core::sync::atomic::{AtomicUsize, AtomicU32, Ordering};
 use core::mem::MaybeUninit;
-use lock_api::RawMutex;
-use spin::mutex::spin::SpinMutex as Spin;
 use crate::defer::defer;
 use crate::bsp::mmap;
 use crate::driver;
 
-pub type SpinMutex<T> = Mutex<Spin<()>, T>;
-pub type SpinMutexMut<'a, T> = MutexMut<'a, Spin<()>, T>;
+pub trait RawMutex {
+    /// Check and see if the lock has been acquired.
+    fn is_locked(&self) -> bool;
+
+    /// Acquire the lock if it's available.
+    ///
+    /// If the lock is available, this returns true. Otherwise, return false.
+    fn try_lock(&self) -> bool;
+
+    /// Acquire the lock and block if already acquired.
+    fn lock(&self);
+
+    /// Release the lock.
+    ///
+    /// # Safety
+    ///
+    /// All references to the data protected by this lock must be dropped before unlocking,
+    /// otherwise there will be undefined behavior.
+    ///
+    /// Attempting to unlock a mutex that is already unlocked is a safe operation.
+    unsafe fn unlock(&self);
+}
+
+pub type SpinMutex<T> = Mutex<Spin, T>;
+pub type SpinMutexMut<'a, T> = MutexMut<'a, Spin, T>;
+
+pub struct Spin {
+    locked: UnsafeCell<bool>,
+}
+
+unsafe impl Send for Spin {}
+unsafe impl Sync for Spin {}
+
+impl Spin {
+    const INIT: Self = Self { locked: UnsafeCell::new(false) };
+
+    unsafe fn set_lock_state(&self, acquired: bool) {
+        self.locked.get().write_volatile(acquired)
+    }
+}
+
+impl Default for Spin {
+    fn default() -> Self {
+        Self::INIT
+    }
+}
+
+impl RawMutex for Spin {
+    fn is_locked(&self) -> bool {
+        unsafe { *self.locked.get() }
+    }
+
+    fn try_lock(&self) -> bool {
+        if !self.is_locked() {
+            unsafe { self.set_lock_state(true) }
+            true
+        } else {
+            false
+        }
+    }
+
+    fn lock(&self) {
+        while self.is_locked() {
+            crate::arch::asm::nop()
+        }
+        unsafe { self.set_lock_state(true) }
+    }
+
+    unsafe fn unlock(&self) {
+        self.set_lock_state(false)
+    }
+}
 
 pub struct Mutex<R, T>
 where
-    R: lock_api::RawMutex,
+    R: RawMutex,
     T: ?Sized,
 {
     mutex: R,
@@ -90,12 +168,6 @@ impl<R: RawMutex, T: ?Sized> MutexMut<'_, R, T> {
     where
         F: FnOnce(&mut T) -> V,
     {
-        use ufmt::uwriteln;
-        let mut gpio = unsafe { crate::driver::gpio::Gpio::new(crate::bsp::mmap::GPIO_BASE) };
-        let mut uart = unsafe { crate::driver::uart::PL011Uart::new(crate::bsp::mmap::PL011_UART_BASE) };
-        uart.init(&mut gpio, 921_600);
-        let _ = uwriteln!(uart, "Unmanaged Hello 7");
-
         self.mutex.lock();
         let _d = defer({
             let mutex = &self.mutex; // only capture the mutex field
@@ -112,7 +184,7 @@ const ONCE_CELL_FILLING: u32 = 1;
 const ONCE_CELL_UNFILLED: u32 = 0;
 
 pub struct OnceCell<T> {
-    filled: AtomicU32,
+    filled: UnsafeCell<u32>,
     data: UnsafeCell<MaybeUninit<T>>,
     _no_send_sync: core::marker::PhantomData<*mut T>,
 }
@@ -133,14 +205,14 @@ impl<T> Default for OnceCell<T> {
 impl<T> OnceCell<T> {
     pub const fn new() -> Self {
         Self {
-            filled: AtomicU32::new(ONCE_CELL_UNFILLED),
+            filled: UnsafeCell::new(ONCE_CELL_UNFILLED),
             data: UnsafeCell::new(MaybeUninit::uninit()),
             _no_send_sync: core::marker::PhantomData,
         }
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.filled.load(Ordering::Acquire) == ONCE_CELL_FILLED
+        ONCE_CELL_FILLED == unsafe { *self.filled.get() }
     }
 
     pub fn get(&self) -> Option<&T> {
@@ -157,37 +229,19 @@ impl<T> OnceCell<T> {
     where
         F: FnOnce() -> T,
     {
-        loop {
-            match self.get() {
-                Some(data) => return data,
-                None => {
-                    use ufmt::uwriteln;
-
-                    let mut gpio = unsafe { driver::gpio::Gpio::new(mmap::GPIO_BASE) };
-                    let mut uart = unsafe { driver::uart::PL011Uart::new(mmap::PL011_UART_BASE) };
-                    uart.init(&mut gpio, 921_600);
-
-                    let _ = uwriteln!(uart, "Unmanaged Hello 1");
-                    let exchange = self.filled.compare_exchange_weak(
-                        ONCE_CELL_UNFILLED,
-                        ONCE_CELL_FILLING,
-                        Ordering::Acquire,
-                        Ordering::Acquire,
-                    );
-                    let _ = uwriteln!(uart, "Unmanaged Hello 4");
-
-                    if exchange.is_err() {
-                        continue // retest the lock
-                    }
+        match self.get() {
+            Some(data) => data,
+            None => {
+                unsafe {
+                    self.filled.get().write_volatile(ONCE_CELL_FILLING);
 
                     // SAFETY: because of the compare-exchange check, we know we're the only one
                     // modifying the data field
-                    let filled_ref = unsafe {
-                        self.data.get().write(MaybeUninit::new(f()));
-                        self.get_unchecked()
-                    };
-                    self.filled.store(ONCE_CELL_FILLED, Ordering::Release);
-                    return filled_ref
+                    self.data.get().write(MaybeUninit::new(f()));
+                    let filled_ref = self.get_unchecked();
+
+                    self.filled.get().write_volatile(ONCE_CELL_FILLED);
+                    filled_ref
                 }
             }
         }
@@ -195,5 +249,74 @@ impl<T> OnceCell<T> {
 
     pub unsafe fn get_unchecked(&self) -> &T {
         (*self.data.get()).assume_init_ref()
+    }
+}
+
+/// Marker type for `Lazy`.
+///
+/// We set Send + Sync markers on this type separately from `Lazy` so that we don't accidentally
+/// override the markers that may have been unset on the inner `OnceCell`.
+struct LazyInitWrapper<F>(UnsafeCell<MaybeUninit<F>>);
+
+/// SAFETY: Since the underlying function is only used once and never shared, the statement "this
+/// object can be shared between threads" is vacuously true.
+unsafe impl<F> Sync for LazyInitWrapper<F> {}
+
+/// SAFETY: This field is adds no extra requirements for the `Send` marker. It is functionally
+/// equivalent to an `Option<F>` but with the caveat that the tag is stored externally.
+unsafe impl<F: Send> Send for LazyInitWrapper<F> {}
+
+impl<F> LazyInitWrapper<F> {
+    const fn new(f: F) -> Self {
+        Self(UnsafeCell::new(MaybeUninit::new(f)))
+    }
+
+    unsafe fn take(&self) -> F {
+        // SAFETY: get_or_init only runs this function once, so this reference is unique
+        let init = &mut *self.0.get();
+        let init = core::mem::replace(init, MaybeUninit::uninit());
+        init.assume_init()
+    }
+}
+
+pub struct Lazy<T, F = fn() -> T>
+{
+    once: OnceCell<T>,
+    init: LazyInitWrapper<F>,
+}
+
+impl<T, F> Lazy<T, F> {
+    pub const fn new(init: F) -> Self {
+        Self {
+            once: OnceCell::new(),
+            init: LazyInitWrapper::new(init),
+        }
+    }
+}
+
+impl<T, F> Lazy<T, F>
+where
+    F: FnOnce() -> T,
+{
+    /// Force the initialization to happen immediately.
+    pub fn force(&self) {
+        self.get();
+    }
+
+    pub fn get(&self) -> &T {
+        self.once.get_or_init(move || {
+            // SAFETY: Lazy always starts with the init field being initialized, and this closure
+            // is only ever run once.
+            (unsafe { self.init.take() })()
+        })
+    }
+}
+
+impl<T, F> Drop for Lazy<T, F> {
+    fn drop(&mut self) {
+        if core::mem::needs_drop::<F>() && !self.once.is_initialized() {
+            // SAFETY: Lazy always starts with the init field being initialized
+            unsafe { self.init.take() };
+        }
     }
 }

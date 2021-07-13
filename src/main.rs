@@ -23,6 +23,8 @@ use core::convert::Infallible;
 use ufmt::uwriteln;
 use bsp::DriverManager;
 
+static DRIVERS: sync::Lazy<DriverManager> = sync::Lazy::new(|| unsafe { DriverManager::new() });
+
 /// The "main" entrypoint of the kernel. Called after stopping other cores
 /// and initializing the bss section.
 fn main() -> ! {
@@ -32,14 +34,6 @@ fn main() -> ! {
     arch::asm::wait_forever()
 }
 
-pub fn drivers() -> &'static DriverManager {
-    static DRIVER_MANAGER: sync::OnceCell<DriverManager> = sync::OnceCell::new();
-    // SAFETY: guaranteed to only run once thanks to OnceCell
-    DRIVER_MANAGER.get_or_init(|| {
-        unsafe { DriverManager::new() }
-    })
-}
-
 pub fn stdout() -> sync::SpinMutexMut<'static, dyn ufmt::uWrite<Error=Infallible>> {
-    drivers().stdout()
+    DRIVERS.get().stdout()
 }

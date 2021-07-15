@@ -17,14 +17,12 @@ bsp_rpi4 = []
 
 [dependencies]
 cfg-if = "^1.0"
-lock_api = "*" # use the same version as `spin`
-register = "^1.0.2"
-spin = "^0.9"
+tock-registers = { version = "0.7.x", default-features = false, features = ["register_types"] }
 ufmt = "^0.1"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 # currently only cortex-a is supported
-cortex-a = "^5.1.6"
+cortex-a = "^6"
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
 x86 = "^0.37.0"

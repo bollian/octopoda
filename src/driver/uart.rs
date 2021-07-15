@@ -1,8 +1,9 @@
 use core::convert::Infallible;
 use crate::arch;
 use crate::driver::{self, gpio::Gpio, Driver};
-use register::mmio::{ReadOnly, ReadWrite, WriteOnly};
-use register::{register_bitfields, register_structs};
+use tock_registers::interfaces::{Readable, Writeable};
+use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
+use tock_registers::{register_bitfields, register_structs};
 
 pub trait Uart {
     /// Checks to see if the UART is ready to send more data.

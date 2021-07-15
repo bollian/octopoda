@@ -6,7 +6,7 @@
 #![no_std]
 #![no_main]
 
-#![feature(asm, naked_functions, maybe_uninit_extra, maybe_uninit_ref)]
+#![feature(asm, naked_functions, maybe_uninit_extra)]
 
 mod arch;
 mod bsp;
@@ -23,7 +23,7 @@ use core::convert::Infallible;
 use ufmt::uwriteln;
 use bsp::DriverManager;
 
-static DRIVERS: sync::Lazy<DriverManager> = sync::Lazy::new(|| unsafe { DriverManager::new() });
+pub static DRIVERS: sync::Lazy<DriverManager> = sync::Lazy::new(|| unsafe { DriverManager::new() });
 
 /// The "main" entrypoint of the kernel. Called after stopping other cores
 /// and initializing the bss section.

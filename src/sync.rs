@@ -8,12 +8,9 @@
 //! serve to get around the sharing restrictions imposed by the rust compiler. Eventually, the
 //! bug(s) that prevent the use of atomics need to be fixed.
 
-use core::cell::{Cell, UnsafeCell};
-use core::sync::atomic::{AtomicUsize, AtomicU32, Ordering};
+use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use crate::defer::defer;
-use crate::bsp::mmap;
-use crate::driver;
 
 pub trait RawMutex {
     /// Check and see if the lock has been acquired.
@@ -49,7 +46,9 @@ unsafe impl Send for Spin {}
 unsafe impl Sync for Spin {}
 
 impl Spin {
-    const INIT: Self = Self { locked: UnsafeCell::new(false) };
+    const fn new() -> Self {
+        Self { locked: UnsafeCell::new(false) }
+    }
 
     unsafe fn set_lock_state(&self, acquired: bool) {
         self.locked.get().write_volatile(acquired)
@@ -58,7 +57,7 @@ impl Spin {
 
 impl Default for Spin {
     fn default() -> Self {
-        Self::INIT
+        Self::new()
     }
 }
 
@@ -134,12 +133,13 @@ where
         self.mutex.lock();
         // SAFETY: safe because we just acquired this lock, so we're responsible for releasing it
         let _d = defer(|| unsafe { self.mutex.unlock() });
-        return critical_section(unsafe {
+
+        critical_section(unsafe {
             &mut *self.data.get()
-        });
+        })
     }
 
-    pub fn borrow<'a, T2>(&'a self) -> MutexMut<'a, R, T2>
+    pub fn borrow<T2>(&self) -> MutexMut<'_, R, T2>
     where
         T: AsMut<T2>,
         T2: ?Sized,
@@ -173,9 +173,10 @@ impl<R: RawMutex, T: ?Sized> MutexMut<'_, R, T> {
             let mutex = &self.mutex; // only capture the mutex field
             move || unsafe { mutex.unlock() }
         });
-        return critical_section(unsafe {
+
+        critical_section(unsafe {
             &mut *self.data
-        });
+        })
     }
 }
 

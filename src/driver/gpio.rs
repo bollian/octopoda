@@ -1,7 +1,8 @@
 use crate::arch;
 use crate::driver::Driver;
-use register::mmio::ReadWrite;
-use register::{register_bitfields, register_structs};
+use tock_registers::interfaces::{ReadWriteable, Writeable};
+use tock_registers::registers::ReadWrite;
+use tock_registers::{register_bitfields, register_structs};
 
 // Description taken from
 // https://github.com/raspberrypi/documentation/files/1888662/BCM2837-ARM-Peripherals.-.Revised.-.V2-1.pdf

@@ -6,9 +6,8 @@ pub fn defer<F: FnOnce()>(deferred: F) -> Defer<F> {
 
 impl<F: FnOnce()> Drop for Defer<F> {
     fn drop(&mut self) {
-        match self.0.take() {
-            Some(f) => f(),
-            None => {}, // should never happen
+        if let Some(f) = self.0.take() {
+            f()
         }
     }
 }

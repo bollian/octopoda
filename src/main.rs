@@ -12,14 +12,16 @@ mod arch;
 mod bsp;
 mod defer;
 mod driver;
+mod log;
 mod memory;
 mod panic_wait;
 mod runtime_init;
 mod sync;
-// mod time;
-// mod warn;
+mod time;
 
+use time::{DurationExt, SimpleTimer};
 use core::convert::Infallible;
+use core::time::Duration;
 use ufmt::uwriteln;
 use bsp::DriverManager;
 
@@ -31,7 +33,11 @@ fn main() -> ! {
     stdout().with_lock(|w| {
         let _ = uwriteln!(w, "Hello, World!");
     });
-    arch::asm::wait_forever()
+
+    loop {
+        time::arch_timer().spin_for(Duration::from_secs(5));
+        trace!("Current uptime: {}", time::arch_timer().uptime().display_human());
+    }
 }
 
 pub fn stdout() -> sync::SpinMutexMut<'static, dyn ufmt::uWrite<Error=Infallible>> {

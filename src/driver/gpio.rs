@@ -1,4 +1,3 @@
-use crate::arch;
 use crate::driver::Driver;
 use tock_registers::interfaces::{ReadWriteable, Writeable};
 use tock_registers::registers::ReadWrite;
@@ -92,19 +91,22 @@ impl Gpio {
 
     #[cfg(feature = "bsp_rpi3")]
     pub fn setup_uart(&mut self) {
-        const DELAY: u32 = 2000;
+        use crate::time::SimpleTimer;
+        use core::time::Duration;
+
+        const DELAY: Duration = Duration::from_nanos(2000);
 
         // map UART1 to GPIO pins
         self.regs.GPFSEL1.modify(GPFSEL1::FSEL14::PL011_UART_TX + GPFSEL1::FSEL15::PL011_UART_RX);
-        arch::asm::spin_for_nops(DELAY);
+        crate::time::arch_timer().spin_for(DELAY);
 
         self.regs.GPPUD.write(GPPUD::PUD::Off);
-        arch::asm::spin_for_nops(DELAY);
+        crate::time::arch_timer().spin_for(DELAY);
 
         self.regs.GPPUDCLK0.write(
             GPPUDCLK0::PUDCLK14::AssertClock + GPPUDCLK0::PUDCLK15::AssertClock,
         );
-        arch::asm::spin_for_nops(DELAY);
+        crate::time::arch_timer().spin_for(DELAY);
 
         self.regs.GPPUD.write(GPPUD::PUD::Off);
         self.regs.GPPUDCLK0.set(0);

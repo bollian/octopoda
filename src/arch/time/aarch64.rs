@@ -4,21 +4,29 @@
 
 //! Architectural timer primitives.
 //!
-//! # Orientation
+//! There are a couple registers used for the Aarch64 architectural timer:
+//! - CNTPCT_EL0: the system "counter-timer". Basically it's a number that counts up with time.
+//! - CNTFRQ_EL0: the frequency of the above timer, in Hz
 //!
-//! Since arch modules are imported into generic modules using the path attribute, the path of this
-//! file is:
+//! Together these can be used to measure relative time in real units.
 //!
-//! crate::time::arch_time
+//! Additionally, there exists:
+//! - CNTP_TVAL_EL0: set a hardware countdown using CNTPCT_EL0,
+//! - CNTP_CTL_EL0: control the behavior of the countdown timer (interrupts, enable/disable, etc)
+//!
+//! Which are used for creating countdown timers.
 
 use crate::{time, warn};
+use core::convert::TryInto;
 use core::time::Duration;
-use cortex_a::{barrier, regs::*};
+use cortex_a::{asm::barrier, registers::*};
+use tock_registers::interfaces::{Readable, ReadWriteable, Writeable};
 
 //--------------------------------------------------------------------------------------------------
 // Private Definitions
 //--------------------------------------------------------------------------------------------------
 
+// TODO: this constant probably shouldn't live here
 const NS_PER_S: u64 = 1_000_000_000;
 
 /// ARMv8 Generic Timer.
@@ -28,7 +36,7 @@ struct GenericTimer;
 // Global instances
 //--------------------------------------------------------------------------------------------------
 
-static TIME_MANAGER: GenericTimer = GenericTimer;
+static SIMPLE_TIMER: GenericTimer = GenericTimer;
 
 //--------------------------------------------------------------------------------------------------
 // Private Code
@@ -48,8 +56,8 @@ impl GenericTimer {
 //--------------------------------------------------------------------------------------------------
 
 /// Return a reference to the time manager.
-pub fn time_manager() -> &'static impl time::SimpleTimer {
-    &TIME_MANAGER
+pub fn simple_timer() -> &'static impl time::SimpleTimer {
+    &SIMPLE_TIMER
 }
 
 //------------------------------------------------------------------------------
@@ -71,36 +79,28 @@ impl time::SimpleTimer for GenericTimer {
     fn spin_for(&self, duration: Duration) {
         // Instantly return on zero.
         if duration.as_nanos() == 0 {
-            return;
+            return
         }
 
         // Calculate the register compare value.
         let frq = CNTFRQ_EL0.get();
-        let x = match frq.checked_mul(duration.as_nanos() as u64) {
-            None => {
-                // warn!("Spin duration too long, skipping");
-                return;
-            }
+        let nanos = duration.as_nanos().try_into().ok();
+        let x = match nanos.and_then(|nanos| frq.checked_mul(nanos)) {
             Some(val) => val,
+            None => {
+                warn!("Spin duration of {}ns too long, skipping", duration.as_nanos());
+                return
+            }
         };
         let tval = x / NS_PER_S;
 
         // Check if it is within supported bounds.
-        let warn: Option<&str> = if tval == 0 {
-            Some("smaller")
-        // The upper 32 bits of CNTP_TVAL_EL0 are reserved.
+        if tval == 0 {
+            warn!("Spin duration smaller than architecturally supported, skipping");
+            return
         } else if tval > u32::max_value().into() {
-            Some("bigger")
-        } else {
-            None
-        };
-
-        if let Some(w) = warn {
-            // warn!(
-            //     "Spin duration {} than architecturally supported, skipping",
-            //     w
-            // );
-            return;
+            warn!("Spin duration bigger than architecturally supported, skipping");
+            return
         }
 
         // Set the compare value register.

@@ -16,7 +16,7 @@
 //!
 //! Which are used for creating countdown timers.
 
-use crate::{time, warn};
+use crate::{time::{self, NS_PER_SEC}, warn};
 use core::convert::TryInto;
 use core::time::Duration;
 use cortex_a::{asm::barrier, registers::*};
@@ -25,9 +25,6 @@ use tock_registers::interfaces::{Readable, ReadWriteable, Writeable};
 //--------------------------------------------------------------------------------------------------
 // Private Definitions
 //--------------------------------------------------------------------------------------------------
-
-// TODO: this constant probably shouldn't live here
-const NS_PER_S: u64 = 1_000_000_000;
 
 /// ARMv8 Generic Timer.
 struct GenericTimer;
@@ -66,11 +63,11 @@ pub fn simple_timer() -> &'static impl time::SimpleTimer {
 
 impl time::SimpleTimer for GenericTimer {
     fn resolution(&self) -> Duration {
-        Duration::from_nanos(NS_PER_S / CNTFRQ_EL0.get())
+        Duration::from_nanos(NS_PER_SEC / CNTFRQ_EL0.get())
     }
 
     fn uptime(&self) -> Duration {
-        let current_count: u64 = self.read_cntpct() * NS_PER_S;
+        let current_count: u64 = self.read_cntpct() * NS_PER_SEC;
         let frq = CNTFRQ_EL0.get();
 
         Duration::from_nanos(current_count / frq)
@@ -92,7 +89,7 @@ impl time::SimpleTimer for GenericTimer {
                 return
             }
         };
-        let tval = x / NS_PER_S;
+        let tval = x / NS_PER_SEC;
 
         // Check if it is within supported bounds.
         if tval == 0 {

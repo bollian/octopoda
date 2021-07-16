@@ -10,6 +10,9 @@
 use core::time::Duration;
 pub use crate::arch::time::simple_timer as arch_timer;
 
+/// Number of nanoseconds in a second
+pub const NS_PER_SEC: u64 = 1_000_000_000;
+
 /// Number of seconds in a minute
 pub const SECS_PER_MINUTE: u64 = 60;
 
@@ -40,6 +43,7 @@ pub trait SimpleTimer {
     fn spin_for(&self, duration: Duration);
 }
 
+/// Extension methods for [`core::time::Duration`]
 pub trait DurationExt {
     fn display_human(&self) -> DisplayDuration<'_>;
 }

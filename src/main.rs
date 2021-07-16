@@ -1,5 +1,6 @@
 //! An experimental kernel I'm developing as a thought experiment.
 
+#![allow(clippy::enum_variant_names)] // enum variants are often based on hardware names
 #![deny(const_err, illegal_floating_point_literal_pattern, trivial_numeric_casts)]
 #![forbid(bare_trait_objects, improper_ctypes, no_mangle_generic_items, patterns_in_fns_without_body)]
 

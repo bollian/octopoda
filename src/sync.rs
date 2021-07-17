@@ -1,10 +1,14 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 //! Synchronization primitives.
 //!
 //! At the moment, these are wildly incorrect implementations that don't use proper atomic
 //! operations. This is only because the RPi3 doesn't seem to accept the ARMv8 atomic instructions.
 //! There's probably some flag that needs to be set in the CPU to enable them.
 //!
-//! So long as this kernel is single-threaded, this isn't actually a problem. These type instead
+//! So long as this kernel is single-threaded, this isn't actually a problem. These types instead
 //! serve to get around the sharing restrictions imposed by the rust compiler. Eventually, the
 //! bug(s) that prevent the use of atomics need to be fixed.
 

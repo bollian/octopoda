@@ -7,7 +7,7 @@ pub mod smp {
         MPIDR_EL1.get() & 0b11
     }
 
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[inline(always)]
     pub fn core_id() -> u64 {
         todo!()

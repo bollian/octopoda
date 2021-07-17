@@ -1,1 +1,52 @@
-# metro kernel
+# Octopoda
+
+A small kernel I'm writing for fun as a though experiment. Most of it is based
+on the excellent tutorial
+<https://github.com/rust-embedded/rust-raspberrypi-OS-tutorials>. Currently, it
+only targets the Raspberry Pi 3, partially because that's the hardware I can
+test on. In the longer term, ports to x86, RISC-V, and the RPi4 are all
+possible.
+
+I'm nowhere near accomplishing or even starting on the following ideas. However,
+once I get a userland, there are a few main ideas I want to experiment with:
+
+## Containerization
+
+Linux containers, BSD jails, and micro VMs are all really cool ideas, but they
+all come with their own limitations. In particular, the inability to nest
+containers on Linux pushed me to start on this project (though Linux containers
+get better all the time).
+
+I'm hoping that by ignoring POSIX and starting with OS-level containerization as
+a goal, it might be possible to do better. Maybe.
+
+This would probably require a more granular permissions system, easier ways to
+restrict filesystem access, and ending the special treatment of UID 0.
+
+## First-Class WebAssembly
+
+Largely inspired by the  [Birth and Death of
+Javascript](https://www.destroyallsoftware.com/talks/the-birth-and-death-of-javascript)
+talk and Mark Weiser's *The Computer for the 21st Century* paper, I think it
+would be interesting to bake webassembly deeply into the operating system so
+that any webassembly executable could be considered native.
+
+In particular, I'd be interested in finding out how much functionality can be
+packed into a webassembly program stored on a QR code or RFID card.
+
+## Embedded Programming
+
+When working on small electronics projects, it would be nice to have an
+operating system I can claim to completely understand and can modify at will.
+For example, it would be nice to have the freedom to write my own scheduling
+algorithm in a small kernel I can wrap my head around.
+
+Additionally, I want to get better at writing code for bare-metal Arm
+processors. I've already done quite a bit of that in the past, but this provides
+a platform I can experiment with over time so that I'm not so tied to whatever
+Arduino and STM are making available.
+
+## Summary
+
+Don't use this; it's for me and not for you. Prepare to be disappointed
+otherwise.

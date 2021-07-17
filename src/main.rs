@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 //! An experimental kernel I'm developing as a thought experiment.
 
 #![allow(clippy::enum_variant_names)] // enum variants are often based on hardware names

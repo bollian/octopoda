@@ -7,10 +7,34 @@ pub mod uart;
 
 #[derive(Debug)]
 pub enum Error {
-    Unknown
 }
 
-pub trait Driver {
-    /// Compatibility string identifying the driver
-    fn compatible(&self) -> &'static str;
+pub mod traits {
+    use crate::sync::*;
+
+    /// Trait that's implemented by all drivers
+    pub trait Driver {
+        const COMPATIBLE: &'static str;
+    }
+
+    /// Object-safe trait that can be implemented for Mutex-protected drivers
+    pub trait Compatible {
+        fn compatible(&self) -> &'static str;
+    }
+
+    impl<T: Driver> Compatible for T {
+        fn compatible(&self) -> &'static str {
+            T::COMPATIBLE
+        }
+    }
+
+    impl<R, T> Compatible for Mutex<R, T>
+    where
+        R: RawMutex,
+        T: Driver,
+    {
+        fn compatible(&self) -> &'static str {
+            T::COMPATIBLE
+        }
+    }
 }

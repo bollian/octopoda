@@ -24,9 +24,9 @@ mod runtime_init;
 mod sync;
 mod time;
 
-use time::{DurationExt, SimpleTimer};
 use core::convert::Infallible;
 use core::time::Duration;
+use time::{DurationExt, SimpleTimer};
 use ufmt::uwriteln;
 use bsp::DriverManager;
 
@@ -37,6 +37,9 @@ pub static DRIVERS: sync::Lazy<DriverManager> = sync::Lazy::new(|| unsafe { Driv
 fn main() -> ! {
     stdout().with_lock(|w| {
         let _ = uwriteln!(w, "Hello, World!");
+        for driver in DRIVERS.get().iter() {
+            let _ = uwriteln!(w, "Loaded driver '{}'", driver.compatible());
+        }
     });
 
     loop {

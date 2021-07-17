@@ -7,7 +7,7 @@
 use core::cell::UnsafeCell;
 use core::ops::RangeInclusive;
 use core::convert::Infallible;
-use crate::driver::{Driver, gpio::Gpio, uart::PL011Uart};
+use crate::driver::{traits::Compatible, gpio::Gpio, uart::PL011Uart};
 use crate::sync::{SpinMutex, SpinMutexMut};
 
 pub mod mmap {
@@ -70,8 +70,8 @@ impl DriverManager {
         }
     }
 
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = SpinMutexMut<dyn Driver>> {
-        core::array::IntoIter::new([self.gpio.borrow(), self.uart.borrow()])
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = &dyn Compatible> {
+        core::array::IntoIter::new([&self.gpio as &dyn Compatible, &self.uart])
     }
 
     pub fn stdout(&self) -> SpinMutexMut<dyn ufmt::uWrite<Error = Infallible>> {

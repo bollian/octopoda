@@ -1,4 +1,4 @@
-use crate::driver::Driver;
+use crate::driver::traits::Driver;
 use tock_registers::interfaces::{ReadWriteable, Writeable};
 use tock_registers::registers::ReadWrite;
 use tock_registers::{register_bitfields, register_structs};
@@ -114,13 +114,5 @@ impl Gpio {
 }
 
 impl Driver for Gpio {
-    fn compatible(&self) -> &'static str {
-        "BCM GPIO"
-    }
-}
-
-impl AsMut<dyn Driver> for Gpio {
-    fn as_mut(&mut self) -> &mut (dyn Driver + 'static) {
-        self
-    }
+    const COMPATIBLE: &'static str = "BCM GPIO";
 }

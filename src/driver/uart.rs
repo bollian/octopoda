@@ -1,6 +1,6 @@
 use core::convert::Infallible;
 use crate::arch;
-use crate::driver::{self, gpio::Gpio, Driver};
+use crate::driver::{self, gpio::Gpio, traits::Driver};
 use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
 use tock_registers::{register_bitfields, register_structs};
@@ -257,15 +257,7 @@ impl ufmt::uWrite for PL011Uart {
 }
 
 impl Driver for PL011Uart {
-    fn compatible(&self) -> &'static str {
-        "BCM PL011 UART"
-    }
-}
-
-impl AsMut<dyn Driver> for PL011Uart {
-    fn as_mut(&mut self) -> &mut (dyn Driver + 'static) {
-        self
-    }
+    const COMPATIBLE: &'static str = "BCM PL011 UART";
 }
 
 impl AsMut<dyn ufmt::uWrite<Error=Infallible>> for PL011Uart {

@@ -34,7 +34,7 @@ cfg_if::cfg_if! {
         pub unsafe extern "C" fn _start_rust() -> ! {
             // only continue with running the kernel if we're core 0,
             // otherwise wait_forever (i.e. stop the core)
-            if crate::arch::cpu::smp::core_id() == 0 {
+            if crate::arch::cpu::core_id() == 0 {
                 asm!(
                     "ldr x1, =_start",
                     "mov sp, x1",

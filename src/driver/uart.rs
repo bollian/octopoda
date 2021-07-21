@@ -1,4 +1,4 @@
-use core::convert::Infallible;
+use crate::driver::WriteError;
 use crate::arch;
 use crate::driver::{self, gpio::Gpio, traits::Driver};
 use tock_registers::interfaces::{Readable, Writeable};
@@ -243,7 +243,7 @@ impl Uart for PL011Uart {
 }
 
 impl ufmt::uWrite for PL011Uart {
-    type Error = core::convert::Infallible;
+    type Error = WriteError;
 
     fn write_str(&mut self, msg: &str) -> Result<(), Self::Error> {
         for byte in msg.bytes() {
@@ -260,8 +260,8 @@ impl Driver for PL011Uart {
     const COMPATIBLE: &'static str = "BCM PL011 UART";
 }
 
-impl AsMut<dyn ufmt::uWrite<Error=Infallible>> for PL011Uart {
-    fn as_mut(&mut self) -> &mut (dyn ufmt::uWrite<Error=Infallible> + 'static) {
+impl AsMut<dyn ufmt::uWrite<Error=WriteError>> for PL011Uart {
+    fn as_mut(&mut self) -> &mut (dyn ufmt::uWrite<Error=WriteError> + 'static) {
         self
     }
 }

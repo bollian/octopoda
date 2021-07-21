@@ -13,6 +13,9 @@
 
 #![feature(asm, naked_functions, maybe_uninit_extra)]
 
+#[cfg(target_arch = "x86_64")]
+extern crate bootloader;
+
 mod arch;
 mod bsp;
 mod defer;
@@ -24,11 +27,11 @@ mod runtime_init;
 mod sync;
 mod time;
 
-use core::convert::Infallible;
 use core::time::Duration;
 use time::{DurationExt, SimpleTimer};
 use ufmt::uwriteln;
 use bsp::DriverManager;
+use driver::WriteError;
 
 pub static DRIVERS: sync::Lazy<DriverManager> = sync::Lazy::new(|| unsafe { DriverManager::new() });
 
@@ -42,12 +45,17 @@ fn main() -> ! {
         }
     });
 
+    // let mut count = 0;
+    // loop {
+    //     trace!("Hello {}", count);
+    //     count += 1;
+    // }
     loop {
         time::arch_timer().spin_for(Duration::from_secs(5));
         trace!("Current uptime: {}", time::arch_timer().uptime().display_human());
     }
 }
 
-pub fn stdout() -> sync::SpinMutexMut<'static, dyn ufmt::uWrite<Error=Infallible>> {
+pub fn stdout() -> sync::SpinMutexMut<'static, dyn ufmt::uWrite<Error=WriteError>> {
     DRIVERS.get().stdout()
 }

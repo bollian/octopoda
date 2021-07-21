@@ -1,7 +1,7 @@
 #[inline(always)]
 pub fn _nop() {
     unsafe {
-        llvm_asm!("nop" :::: "volatile");
+        asm!("nop");
     }
 }
 

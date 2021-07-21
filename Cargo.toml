@@ -11,21 +11,23 @@ categories = ["embedded", "hardware-support", "no-std"]
 description = "An OS kernel I'm developing as a thought experiment"
 
 [features]
-default = []
+default = ["bsp_rpi3"]
 bsp_rpi3 = []
 bsp_rpi4 = []
+bsp_x86_64 = []
 
 [dependencies]
 cfg-if = "^1.0"
 tock-registers = { version = "0.7.x", default-features = false, features = ["register_types"] }
 ufmt = "^0.1"
 
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+bootloader = "^0.9.8"
+x86 = "^0.40.0"
+
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 # currently only cortex-a is supported
 cortex-a = "^6"
-
-[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
-x86 = "^0.37.0"
 
 [profile.release]
 lto = true

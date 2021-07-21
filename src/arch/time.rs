@@ -8,6 +8,6 @@ cfg_if::cfg_if! {
         pub use aarch64::*;
     } else if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
         mod x86;
-        pub use x86::*;
+        pub use self::x86::*;
     }
 }

@@ -89,7 +89,6 @@ impl Gpio {
         }
     }
 
-    #[cfg(feature = "bsp_rpi3")]
     pub fn setup_uart(&mut self) {
         use crate::time::SimpleTimer;
         use core::time::Duration;
